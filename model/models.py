@@ -32,7 +32,7 @@ class ResNet34(nn.Module):
 class SeResNext(nn.Module):
     
     def __init__(self, pretrained = True):
-        super(ResNet34, self).__init__()
+        super(SeResNext, self).__init__()
 
         if pretrained:
             self.model = pretrainedmodels.__dict__['se_resnext50_32x4d'](pretrained='imagenet')

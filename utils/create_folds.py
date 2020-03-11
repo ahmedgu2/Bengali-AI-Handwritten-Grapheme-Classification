@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
+"""
+    Split data into k folds for cross validation
+"""
+
 if __name__ == "__main__":
 
     df = pd.read_csv("../data/train.csv")

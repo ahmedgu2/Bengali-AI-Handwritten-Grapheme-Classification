@@ -7,6 +7,10 @@ from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import ToTensor, Normalize, RandomRotation
 
+"""
+    This dataset is used when doing cross-validation (using kfold data in train_folds.csv)
+"""
+
 class GraphemeDataSet(Dataset):
 
     def __init__(self, root_dir, csv_file, fold = 0):

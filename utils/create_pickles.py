@@ -4,6 +4,10 @@ import joblib
 import glob
 from tqdm import tqdm
 
+"""
+    Create pickle files of images from the parquet files.
+"""
+
 if __name__ == "__main__":
 
     files = glob.glob("../data/train_*.parquet")
