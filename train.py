@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from model.model_dispatcher import MODEL_DISPATCHER
-from dataset.train_dataset import GraphemeDataSet
+from dataset.dataset import GraphemeDataSet
+from utils.pytorchtools import EarlyStopping
 import os
 import ast
 from tqdm import tqdm
@@ -54,8 +55,6 @@ def train(train_loader, model, optimizer, epoch):
     model.train()
     running_loss = 0.0
 
-    #print("Training at epoch {}".format(epoch))
-
     for batch, data in tqdm(enumerate(train_loader), total = len(train_loader)):
 
         images = data['image']
@@ -77,9 +76,6 @@ def train(train_loader, model, optimizer, epoch):
         loss.backward()
         optimizer.step()
 
-       # if batch % 10:
-        #    print("batch {}/{} : {:.4f}".format(batch, len(train_loader), loss.item()))
-
     print("Train loss {} : {:.4f}".format(epoch, running_loss / len(train_loader)))
 
 
@@ -89,7 +85,6 @@ def evaluate(valid_loader, model, epoch):
     running_loss = 0.0
     acc = 0.0
 
-    #print("Validation at epoch {}".format(epoch))
     with torch.no_grad():
 
         for batch, data in tqdm(enumerate(valid_loader), total = len(valid_loader)):
@@ -110,18 +105,20 @@ def evaluate(valid_loader, model, epoch):
             running_loss += loss.item()
             acc += recal(targets, outs)
 
-        # if batch % 10:
-            #    print("batch {}/{} : {:.4f}".format(batch, len(valid_loader), loss.item()))
-
-    print("Validation loss {} : {:.4f}\n Accuracy : {:.4f}".format(epoch, running_loss / len(valid_loader), acc / len(valid_loader)))
+    print("Validation loss {} : {:.4f}\n Recall : {:.4f}".format(epoch, running_loss / len(valid_loader), acc / len(valid_loader)))
     
     return running_loss / len(valid_loader)
 
 
 def main():
 
-    train_dataset = GraphemeDataSet(TRAIN_DATA_DIR, TRAIN_DATA_CSV, TRAINING_FOLDS)
-    valid_dataset = GraphemeDataSet(TRAIN_DATA_DIR, TRAIN_DATA_CSV, VALIDATION_FOLDS)
+    #using kfold
+    #train_dataset = GraphemeDataSet(TRAIN_DATA_DIR, TRAIN_DATA_CSV, TRAINING_FOLDS)
+    #valid_dataset = GraphemeDataSet(TRAIN_DATA_DIR, TRAIN_DATA_CSV, VALIDATION_FOLDS)
+
+    #using one split : train and validation
+    train_dataset = GraphemeDataSet(TRAIN_DATA_DIR, TRAIN_DATA_CSV, is_train=True)
+    valid_dataset = GraphemeDataSet(TRAIN_DATA_DIR, TRAIN_DATA_CSV, is_train=False)
 
     train_loader = DataLoader(
         dataset = train_dataset,
@@ -136,18 +133,21 @@ def main():
     )
 
     model = MODEL_DISPATCHER[BASE_MODEL](pretrained = True)
-    model.load_state_dict(torch.load("model/checkpoints/resnet34-4-1.7213.model"))
     model.to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters())
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.3, patience=5, verbose=True)
+    early_stopping = EarlyStopping(patience=7, verbose=True)
 
     for e in range(EPOCHS):
         print("Epoch {} : ".format(e))
-        #train(train_loader, model, optimizer, e)
+        train(train_loader, model, optimizer, e)
         val_score = evaluate(valid_loader, model, e)
         scheduler.step(val_score)
-        torch.save(model.state_dict(), "model/checkpoints/{}-{}-{:.4f}.model".format(BASE_MODEL, VALIDATION_FOLDS[0], val_score))
+        early_stopping(val_score, model)
+        if early_stopping.early_stop:
+            print("Early stopping!")
+            break
 
 if __name__ == "__main__":
     main()
